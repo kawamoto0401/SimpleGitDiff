@@ -14,10 +14,14 @@
   "contributes": {
     "commands": [
       {
-        "command": "simplegitdiff.helloWorld",
-        "title": "Hello World SimpleGitDiff"
+        "command": "simplegitdiff.makeSimpleGitDiff",
+        "title": "SimpleGitDiff"
+      },
+      {
+        "command": "simplegitdiff.makeSimpleGitDiffClear",
+        "title": "SimpleGitDiffClear"
       }
-    ]
+      ]
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
