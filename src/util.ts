@@ -3,85 +3,142 @@ import internal = require('stream');
 import * as vscode from 'vscode';
 import { DecorationRangeBehavior, OverviewRulerLane, Uri, ExtensionContext } from "vscode";
 import { TextEditorDecorationType } from "vscode";
+import { Mutex } from "./oss/await-semaphore-master";
 
 export class Util {
 
-    public readonly placeholderDecorationUri = Uri.file(
-        path.join(__dirname, "..", "resources", "dark", "file_r.svg")
-    );
+    private static instance: Util;
+    private constructor() {
+        this.gutterIconMap = new Map();        
+    }
+
+    public static getInstance(): Util {
+        if (!Util.instance) {
+            Util.instance = new Util();
+        }
+        return Util.instance;
+    }
+
+    private decorationType: vscode.TextEditorDecorationType | undefined;
+    private activeEditor: vscode.TextEditor | undefined;
+    private timeout: NodeJS.Timeout | undefined = undefined;
+
+    private filePath: string | undefined = undefined;
+    private rows: number[] | undefined = undefined;
+
+
+    public init() {
+
+        this.setDecorationType();
+
+        this.activeEditor = vscode.window.activeTextEditor;
+    }
+
 
     public readonly placeholderDecoration = vscode.window.createTextEditorDecorationType(
         {
-            gutterIconPath: this.placeholderDecorationUri.fsPath,
-            gutterIconSize: 'contain',
         }
     );
 
     // 削除するためのTextEditorDecorationTypeをファイルパス：行番号で管理
     private gutterIconMap: Map<string, vscode.TextEditorDecorationType>;
 
-    // フォルダパスの設定とMapを設定
-    // TODO:引数にした方が拡張性があるが放置
-    constructor() {
-        this.gutterIconMap = new Map();
-	}
-
-
-    // 引数にファイルパスと行数を設定
-    // ハッシュに登録する
-    setTextMng( editor: vscode.TextEditor, filename : string, rows : number[]) {
-
-        const decorationOptions = {
-            // todo
-            rangeBehavior: DecorationRangeBehavior.ClosedClosed
-        };
-
-        const decorationType = vscode.window.createTextEditorDecorationType(decorationOptions);
-
-        let ranges : vscode.Range[] = [];
-
-        //
-        for (const row of rows) {
-            const pos = new vscode.Position( row, 0 );
-            const range = new vscode.Range(pos, pos);
-
-            ranges.push(range);
-
-            const key = filename + "," + row;
-            this.gutterIconMap.set( key, decorationType );
-        }
-
-        if( 0 === ranges.length ) {
+    private async updateDecorations() {
+        if (!this.activeEditor) {
             return;
         }
 
-        editor.setDecorations(decorationType, ranges);
+        if (!this.filePath || !this.rows || this.rows.length === 0 || !this.decorationType) {
+            return;
+        }
 
-        return;
+        console.log("updateDecorations");
+
+        const text = this.activeEditor.document.getText();
+
+        const rangea: vscode.Range[] = [];
+
+        for (let index = 0; index < this.rows.length; index++) {
+            
+            const range = new vscode.Range(
+                new vscode.Position(this.rows[index] - 1, 0), // 開始位置
+                new vscode.Position(this.rows[index] - 1, Number.MAX_VALUE) // 終了位置
+            );
+
+            rangea.push(range);
+        }
+        
+        const mutex = new Mutex();
+        const release = await mutex.acquire();
+        try {
+            // 排他処理
+            this.activeEditor.setDecorations(this.decorationType, rangea);
+        } finally {
+            // release を呼び出さないとデットロックになる
+            release();
+        }
+
+    }
+
+    public triggerUpdateDecorations(throttle = false) {
+        if (this.timeout) {
+            clearTimeout(this.timeout);
+            this.timeout = undefined;
+        }
+        if (throttle) {
+            // setTimeoutのthis問題を回避
+            this.timeout = setTimeout(() => { this.updateDecorations(); }, 100);
+        } else {
+            this.updateDecorations();
+        }
+    }
+
+    // タブ変更などのactiveEditorを変更時
+    public setActiveEditor(activeEditor: vscode.TextEditor | undefined) {
+        this.activeEditor = activeEditor;
     }
 
 
-    //
-    public getDecorationsList(fsPath: string): Map<vscode.TextEditorDecorationType, Array<vscode.Range>> {
+    public setRows(filePath: string, rows: number[]) {
+        console.log(`setSearchData ${filePath} : ${rows}`);
 
-        let editorDecorations = new Map<TextEditorDecorationType, vscode.Range[]>();
-        for (let [filePathLineNumber, decoration] of this.gutterIconMap) {
+        this.filePath = filePath;
+        this.rows = rows;
 
-            let result = filePathLineNumber.split(',');
-
-            let filePath = result[0];
-            let lineNumber = Number(result[1]);
+        this.triggerUpdateDecorations();
+	}
 
 
-            let ranges = editorDecorations.get(decoration);
-            if (typeof ranges === "undefined") {
-                ranges = new Array<vscode.Range>();
-                editorDecorations.set(decoration, ranges);
-            }
+    // 設定画面よりDecorationTypeを生成
+    private setDecorationType() {
+        const configuration = vscode.workspace.getConfiguration();
 
-            ranges.push(new vscode.Range(lineNumber, 0, lineNumber, 0));
+        let decorationRenderOptions: vscode.DecorationRenderOptions = {};
+
+        decorationRenderOptions.backgroundColor = 'rgba(255, 0, 0, 0.5)';
+
+        this.decorationType = vscode.window.createTextEditorDecorationType(decorationRenderOptions);
+    }
+
+    // 設定変更通知を受信時
+    public async configurationChanged() {
+        console.log("configurationChanged");
+
+        const mutex = new Mutex();
+        const release = await mutex.acquire();
+        try {
+            // 排他処理
+
+            // DecorationTypeを破棄
+            this.decorationType = undefined;
+
+            // 新規のDecorationTypeを設定
+            this.setDecorationType();
+        } finally {
+            // release を呼び出さないとデットロックになる
+            release();
         }
 
-        return editorDecorations;
+        this.triggerUpdateDecorations();
     }
 }

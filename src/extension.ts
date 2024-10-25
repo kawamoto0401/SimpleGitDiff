@@ -5,6 +5,7 @@ import path from 'path';
 import SimpleGit  from 'simple-git';
 import * as vscode from 'vscode';
 import { TextEditorDecorationType } from "vscode";
+import { Util } from './util';
 
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
@@ -32,13 +33,21 @@ export function activate(context: vscode.ExtensionContext) {
 			const filePath = editor.document.uri.fsPath;
 			const result = splitFilePath(filePath);
 
+			let promiserows;
+
 			// コミット番号を取得する
 			const commitId = await vscode.window.showInputBox({title: 'Please specify the commitID'});
 			if( commitId !== undefined ) {
-				getSimpleGitDiff(result.dir, result.base, commitId);
+				promiserows = makeSimpleGitDiff(result.dir, result.base, commitId);
 			}else {
-				getSimpleGitDiff(result.dir, result.base, "");
+				promiserows = makeSimpleGitDiff(result.dir, result.base, "");
 			}
+			
+			const rows = await promiserows; // Promise が解決されるまで待つ
+
+			//
+			let util = Util.getInstance();
+			util.setRows(filePath, rows);
 		}
 		else {
 			vscode.window.showInformationMessage('activeTextEditor null');
@@ -54,60 +63,56 @@ export function activate(context: vscode.ExtensionContext) {
 
 	context.subscriptions.push(disposable);
 
-	// アクティブなエディターが変更されたときに発生するイベント
-	vscode.window.onDidChangeActiveTextEditor(textEditor => {
-		console.log("### updateEditorDecorations ");
+	// 現在のTextEditorを取得
+	let activeEditor = vscode.window.activeTextEditor;
 
-		if (typeof textEditor === "undefined") {
-            return;
-        }
+	// 設定情報を取得
+	let util = Util.getInstance();
+	util.init();
 
-        let fsPath = textEditor.document.uri.fsPath;
+	if (activeEditor) {
+		// 現在のTextEditorを登録
+		util.triggerUpdateDecorations();
+	}
 
-		// 削除するためのTextEditorDecorationTypeをファイルパス：行番号で管理
-		let gutterIconMap: Map<string, vscode.TextEditorDecorationType>;
+	// アクティブなエディタが変更されたときに発生するイベントです。このイベントは、アクティブなエディタが変更されたときにも発生することに注意してください
+	vscode.window.onDidChangeActiveTextEditor(editor => {
+		activeEditor = editor;
+		if (editor) {
+			util.setActiveEditor(activeEditor);
+			util.triggerUpdateDecorations();
+		}
+	}, null, context.subscriptions);
 
-    	gutterIconMap = new Map();
+	// テキスト ドキュメントが変更されたときに発生するイベント。これは通常、発生します 内容が変わったときだけでなく、ダーティ状態など他のものも変わったとき。
+	vscode.workspace.onDidChangeTextDocument(event => {
+		if (activeEditor && event.document === activeEditor.document) {
+			util.triggerUpdateDecorations(true);
+		}
+	}, null, context.subscriptions);
 
-        let editorDecorations = new Map<TextEditorDecorationType, vscode.Range[]>();
-        for (let [filePathLineNumber, decoration] of gutterIconMap) {
-
-            let filePath = "";
-            let lineNumber = Number('0');
-
-            let ranges = editorDecorations.get(decoration);
-            if (typeof ranges === "undefined") {
-                ranges = new Array<vscode.Range>();
-                editorDecorations.set(decoration, ranges);
-            }
-
-            ranges.push(new vscode.Range(lineNumber, 0, lineNumber, 0));
-        }
-
-        for (let [decoration, ranges] of editorDecorations) {
-            textEditor.setDecorations(decoration, ranges);
-        }
-	});
-
-	// テキストドキュメントが変更されたときに発行されるイベント
-	vscode.workspace.onDidChangeTextDocument(textDocumentChangeEvent => {
-        let fsPath = textDocumentChangeEvent.document.uri.fsPath;
-
-		// 不要
-	});
+	
+	// 設定変更時のイベントハンドラ
+	function onConfigurationChanged(e: vscode.ConfigurationChangeEvent) {
+		// 排他して、createTextEditorDecorationTypeを更新する
+		console.log("onConfigurationChanged");
+		util.configurationChanged();
+	}
 }
 
 
-async function getSimpleGitDiff(dir: string, fileName: string, commandId: string): Promise<void> {
+async function makeSimpleGitDiff(dir: string, fileName: string, commandId: string): Promise<number[]> {
 
+	let rows: number[] = [];
 	const git = SimpleGit(dir);
 
 	try {
 
+	
 		let logVersion = await git.version();
 		if(!logVersion.installed) {
 			vscode.window.showInformationMessage('git is not install');
-			return;
+			return rows;
 		}
 
 		let logLog;
@@ -115,14 +120,14 @@ async function getSimpleGitDiff(dir: string, fileName: string, commandId: string
 			logLog = await git.log([fileName]);
 			if( logLog.all.length === 0 ) {
 				vscode.window.showInformationMessage('git log failed');
-				return;
+				return rows;
 			}
 		}
 		else {
 			logLog = await git.log([fileName, commandId]);
 			if( logLog.all.length === 0 ) {
 				vscode.window.showInformationMessage('I cannot find the commitID');
-				return;
+				return rows;
 			}
 		}
 
@@ -136,17 +141,49 @@ async function getSimpleGitDiff(dir: string, fileName: string, commandId: string
 
 		if( logDiff.length === 0 ) {
 			vscode.window.showInformationMessage('git diff failed');
-			return;
+			return rows;
 		}
+
+		console.log(`Diff: ${logDiff}`);
 
 		const regex = /@@(.*?)@@/g;
 		let matches = logDiff.match(regex);
-		
-		vscode.window.showInformationMessage(`Diff: ${matches}`);
+		if(!matches) {
+			vscode.window.showInformationMessage('git diff failed 2');
+			return rows;			
+		}
+
+		const lines = logDiff.split('\n');
+		for (let index = 0; index < lines.length; index++) {
+			const line = lines[index];
+			if( line.startsWith('@@')) {
+				const regex = /@@ -(\d+),(\d+) \+(\d+),(\d+) @@/;;
+				const match = line.match(regex);
+
+				if( match?.length !== 5 ) {
+					vscode.window.showInformationMessage('git diff failed 2');
+					return rows;					
+				}
+
+				console.log(`Diff Line: ${line}`);
+
+				let addIndex = 0;
+				for (let index2 = index + 1; index2 < lines.length; index2++) {
+					const line = lines[index2];
+
+					if( line.startsWith('\+')) {
+						rows.push( Number(match[3]) - 1 + addIndex );
+					}
+
+					addIndex = addIndex + 1;					
+				}
+			}
+		}
 	}
 	catch(error) {
 		console.log(error);
 	}
+	return rows;		
 }
 
 // This method is called when your extension is deactivated
