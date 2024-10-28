@@ -173,21 +173,25 @@ async function makeSimpleGitDiff(dir: string, fileName: string, commandId: strin
 				for (let index2 = index + 1; index2 < lines.length; index2++) {
 					const line = lines[index2];
 
+					if(addIndex >= Number(match[4]) - 1) {
+						break;
+					}
+
 					if(line.startsWith('\+')) {
-						rows.push( Number(match[3]) - 1 + addIndex );
+						rows.push( Number(match[3]) + addIndex );
 						addIndex = addIndex + 1;
 					}else if(!line.startsWith('\-')) {
 						addIndex = addIndex + 1;
 					}else {
 
 					}
-
 				}
 			}
 		}
 	}
 	catch(error) {
 		console.log(error);
+		vscode.window.showInformationMessage('SimpleGitDiff Error');
 	}
 	return rows;		
 }

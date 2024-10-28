@@ -87,7 +87,6 @@ export class Util {
             // release を呼び出さないとデットロックになる
             release();
         }
-
     }
 
     public triggerUpdateDecorations(throttle = false) {
