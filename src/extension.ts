@@ -57,8 +57,9 @@ export function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(disposable);
 
 	disposable = vscode.commands.registerCommand('simplegitdiff.makeSimpleGitDiffClear', () => {
-
-
+		//
+		let util = Util.getInstance();
+		util.clearRows();
 	});
 
 	context.subscriptions.push(disposable);
@@ -103,11 +104,12 @@ export function activate(context: vscode.ExtensionContext) {
 
 async function makeSimpleGitDiff(dir: string, fileName: string, commandId: string): Promise<number[]> {
 
+	console.log(`makeSimpleGitDiff: ${dir} ${fileName} ${commandId}`);
+
 	let rows: number[] = [];
 	const git = SimpleGit(dir);
 
 	try {
-
 	
 		let logVersion = await git.version();
 		if(!logVersion.installed) {
@@ -124,7 +126,7 @@ async function makeSimpleGitDiff(dir: string, fileName: string, commandId: strin
 			}
 		}
 		else {
-			logLog = await git.log([fileName, commandId]);
+			logLog = await git.log([commandId, fileName]);
 			if( logLog.all.length === 0 ) {
 				vscode.window.showInformationMessage('I cannot find the commitID');
 				return rows;
@@ -136,7 +138,7 @@ async function makeSimpleGitDiff(dir: string, fileName: string, commandId: strin
 			logDiff = await git.diff([fileName]);
 		}
 		else {
-			logDiff = await git.diff([fileName, commandId]);
+			logDiff = await git.diff([commandId, fileName]);
 		}
 
 		if( logDiff.length === 0 ) {
@@ -171,11 +173,15 @@ async function makeSimpleGitDiff(dir: string, fileName: string, commandId: strin
 				for (let index2 = index + 1; index2 < lines.length; index2++) {
 					const line = lines[index2];
 
-					if( line.startsWith('\+')) {
+					if(line.startsWith('\+')) {
 						rows.push( Number(match[3]) - 1 + addIndex );
+						addIndex = addIndex + 1;
+					}else if(!line.startsWith('\-')) {
+						addIndex = addIndex + 1;
+					}else {
+
 					}
 
-					addIndex = addIndex + 1;					
 				}
 			}
 		}

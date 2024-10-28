@@ -44,13 +44,23 @@ export class Util {
     private gutterIconMap: Map<string, vscode.TextEditorDecorationType>;
 
     private async updateDecorations() {
-        if (!this.activeEditor) {
+        if (!this.activeEditor || !this.decorationType) {
             return;
         }
 
-        if (!this.filePath || !this.rows || this.rows.length === 0 || !this.decorationType) {
+        if (!this.filePath || !this.rows || this.rows.length === 0) {
+             const rangea: vscode.Range[] = [];
+             this.activeEditor.setDecorations(this.decorationType, rangea);
+             return;
+        }
+
+        if(this.filePath !== this.activeEditor.document.fileName) {
+            const rangea: vscode.Range[] = [];
+            this.activeEditor.setDecorations(this.decorationType, rangea);
             return;
         }
+
+        // 
 
         console.log("updateDecorations");
 
@@ -100,7 +110,7 @@ export class Util {
 
 
     public setRows(filePath: string, rows: number[]) {
-        console.log(`setSearchData ${filePath} : ${rows}`);
+        console.log(`setRows ${filePath} : ${rows}`);
 
         this.filePath = filePath;
         this.rows = rows;
@@ -108,6 +118,14 @@ export class Util {
         this.triggerUpdateDecorations();
 	}
 
+    public clearRows() {
+        console.log(`clearRows`);
+
+        this.filePath = undefined;
+        this.rows = undefined;
+
+        this.triggerUpdateDecorations();
+	}
 
     // 設定画面よりDecorationTypeを生成
     private setDecorationType() {
@@ -116,6 +134,8 @@ export class Util {
         let decorationRenderOptions: vscode.DecorationRenderOptions = {};
 
         decorationRenderOptions.backgroundColor = 'rgba(255, 0, 0, 0.5)';
+        decorationRenderOptions.overviewRulerLane = vscode.OverviewRulerLane.Right;
+        decorationRenderOptions.overviewRulerColor = 'rgba(255, 0, 0, 0.5)';
 
         this.decorationType = vscode.window.createTextEditorDecorationType(decorationRenderOptions);
     }
