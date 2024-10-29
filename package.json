@@ -2,7 +2,7 @@
   "name": "simplegitdiff",
   "displayName": "SimpleGitDiff",
   "description": "",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "engines": {
     "vscode": "^1.94.0"
   },

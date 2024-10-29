@@ -9,8 +9,9 @@ export class Util {
 
     private static instance: Util;
     private constructor() {
-        this.gutterIconMap = new Map();        
-    }
+        this.setDecorationType();
+        this.activeEditor = vscode.window.activeTextEditor;
+      }
 
     public static getInstance(): Util {
         if (!Util.instance) {
@@ -25,23 +26,6 @@ export class Util {
 
     private filePath: string | undefined = undefined;
     private rows: number[] | undefined = undefined;
-
-
-    public init() {
-
-        this.setDecorationType();
-
-        this.activeEditor = vscode.window.activeTextEditor;
-    }
-
-
-    public readonly placeholderDecoration = vscode.window.createTextEditorDecorationType(
-        {
-        }
-    );
-
-    // 削除するためのTextEditorDecorationTypeをファイルパス：行番号で管理
-    private gutterIconMap: Map<string, vscode.TextEditorDecorationType>;
 
     private async updateDecorations() {
         if (!this.activeEditor || !this.decorationType) {
@@ -60,29 +44,40 @@ export class Util {
             return;
         }
 
-        // 
-
         console.log("updateDecorations");
 
         const text = this.activeEditor.document.getText();
 
-        const rangea: vscode.Range[] = [];
+        const ranges: vscode.Range[] = [];
 
-        for (let index = 0; index < this.rows.length; index++) {
-            
+        let index = 0;
+        while( index < this.rows.length ) {
+
+            let endRow = this.rows[index];
+
+            let index2 = index + 1;
+            for (; index2 < this.rows.length; index2++) {
+                if( this.rows[index] !== this.rows[index2] - 1 ) {
+                    break;
+                }
+                endRow = this.rows[index2];
+            }
+
             const range = new vscode.Range(
                 new vscode.Position(this.rows[index] - 1, 0), // 開始位置
-                new vscode.Position(this.rows[index] - 1, Number.MAX_VALUE) // 終了位置
+                new vscode.Position(endRow - 1, Number.MAX_VALUE) // 終了位置
             );
 
-            rangea.push(range);
+            ranges.push(range);
+
+            index = index2;
         }
         
         const mutex = new Mutex();
         const release = await mutex.acquire();
         try {
             // 排他処理
-            this.activeEditor.setDecorations(this.decorationType, rangea);
+            this.activeEditor.setDecorations(this.decorationType, ranges);
         } finally {
             // release を呼び出さないとデットロックになる
             release();
@@ -132,9 +127,9 @@ export class Util {
 
         let decorationRenderOptions: vscode.DecorationRenderOptions = {};
 
-        decorationRenderOptions.backgroundColor = 'rgba(255, 0, 0, 0.5)';
+        decorationRenderOptions.backgroundColor = 'rgba(0, 255, 0, 0.2)';
         decorationRenderOptions.overviewRulerLane = vscode.OverviewRulerLane.Right;
-        decorationRenderOptions.overviewRulerColor = 'rgba(255, 0, 0, 0.5)';
+        decorationRenderOptions.overviewRulerColor = 'rgba(0, 255, 0, 0.2)';
 
         this.decorationType = vscode.window.createTextEditorDecorationType(decorationRenderOptions);
     }
@@ -149,7 +144,7 @@ export class Util {
             // 排他処理
 
             // DecorationTypeを破棄
-            this.decorationType = undefined;
+            this.decorationType?.dispose;
 
             // 新規のDecorationTypeを設定
             this.setDecorationType();

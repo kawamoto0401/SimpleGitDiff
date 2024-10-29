@@ -36,7 +36,7 @@ export function activate(context: vscode.ExtensionContext) {
 			let promiserows;
 
 			// コミット番号を取得する
-			const commitId = await vscode.window.showInputBox({title: 'Please specify the commitID'});
+			const commitId = await vscode.window.showInputBox({title: 'Please specify the commitID', placeHolder : 'In the absence of a specified commit ID, the comparison will be made against the HEAD commit.'});
 			if( commitId !== undefined ) {
 				promiserows = makeSimpleGitDiff(result.dir, result.base, commitId);
 			}else {
@@ -69,11 +69,9 @@ export function activate(context: vscode.ExtensionContext) {
 
 	// 設定情報を取得
 	let util = Util.getInstance();
-	util.init();
-
 	if (activeEditor) {
 		// 現在のTextEditorを登録
-		util.triggerUpdateDecorations();
+		util.setActiveEditor(activeEditor);
 	}
 
 	// アクティブなエディタが変更されたときに発生するイベントです。このイベントは、アクティブなエディタが変更されたときにも発生することに注意してください
