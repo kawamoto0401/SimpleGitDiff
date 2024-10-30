@@ -56,13 +56,33 @@ export function activate(context: vscode.ExtensionContext) {
 
 	context.subscriptions.push(disposable);
 
-	disposable = vscode.commands.registerCommand('simplegitdiff.makeSimpleGitDiffClear', () => {
+	// 
+	disposable = vscode.commands.registerCommand('simplegitdiff.clearSimpleGitDiff', () => {
 		//
 		let util = Util.getInstance();
 		util.clearRows();
 	});
 
 	context.subscriptions.push(disposable);
+
+	// 
+	disposable = vscode.commands.registerCommand('simplegitdiff.upSimpleGitDiff', () => {
+		//
+		let util = Util.getInstance();
+		util.upSelectLine();
+	});
+
+	context.subscriptions.push(disposable);
+
+	// 
+	disposable = vscode.commands.registerCommand('simplegitdiff.downSimpleGitDiff', () => {
+		//
+		let util = Util.getInstance();
+		util.downSelectLine();
+	});
+
+	context.subscriptions.push(disposable);
+
 
 	// 現在のTextEditorを取得
 	let activeEditor = vscode.window.activeTextEditor;

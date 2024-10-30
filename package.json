@@ -2,7 +2,7 @@
   "name": "simplegitdiff",
   "displayName": "SimpleGitDiff",
   "description": "",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "engines": {
     "vscode": "^1.94.0"
   },
@@ -18,10 +18,43 @@
         "title": "SimpleGitDiff"
       },
       {
-        "command": "simplegitdiff.makeSimpleGitDiffClear",
+        "command": "simplegitdiff.clearSimpleGitDiff",
         "title": "SimpleGitDiffClear"
+      },
+      {
+        "command": "simplegitdiff.upSimpleGitDiff",
+        "title": "SimpleGitDiffUp"
+      },
+      {
+        "command": "simplegitdiff.downSimpleGitDiff",
+        "title": "SimpleGitDiffDown"
       }
+    ],
+    "configuration": {
+      "properties": {
+        "conf.resource.backgroundColor": {
+          "type": "string",
+          "default": "#00FF0040",
+          "description": "背景色",
+          "pattern": "#[0-9a-fA-F]{8}",
+          "maxLength": 9
+        }
+      }
+    },
+    "menus": {
+      "editor/context": [
+        {
+          "when": "editorFocus",
+          "command": "simplegitdiff.upSimpleGitDiff",
+          "group": "myGroup@1"
+        },
+        {
+          "when": "editorFocus",
+          "command": "simplegitdiff.downSimpleGitDiff",
+          "group": "myGroup@2"
+        }
       ]
+    }
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",

@@ -1,10 +1,10 @@
 # simplegitdiff README
 
-簡単に現在の状態と指定のコミットIDを比較して、エディタに変更点を表示するプログラム
+簡単に現在とワークブランチと指定のコミットIDを比較して、VSCoreのエディタ上に変更箇所を表示するプログラム
 
 ## Features
 
-VSCodeで開いている状態のパスを取得して
+VSCodeで現在のエディタのパスを取得して
 
   git diff [指定コミットID] エディタのファイルパス
 
@@ -14,7 +14,7 @@ VSCodeで開いている状態のパスを取得して
 
 コマンド
 
-  SimpleGitDiff                 現在の状態
+  SimpleGitDiff                 git diff↓結果をエディタに反映させる
 
-  SimpleGitDiffClear            表示していた状態を非表示にする
+  SimpleGitDiffClear            表示していたgit diffの状態を非表示にする
 
