@@ -15,6 +15,14 @@ export function activate(context: vscode.ExtensionContext) {
 	// This line of code will only be executed once when your extension is activated
 	console.log('Congratulations, your extension "simplegitdiff" is now active!');
 
+	let commitId: string | undefined = '';
+
+	function splitFilePath(filePath: string): { dir: string, base: string } {
+		const dir = path.dirname(filePath);
+		const base = path.basename(filePath);
+		return {dir, base};
+	}
+
 	// The command has been defined in the package.json file
 	// Now provide the implementation of the command with registerCommand
 	// The commandId parameter must match the command field in package.json
@@ -23,12 +31,6 @@ export function activate(context: vscode.ExtensionContext) {
 		const editor = vscode.window.activeTextEditor;
 
 		if( editor ) {
-			function splitFilePath(filePath: string): { dir: string, base: string } {
-				const dir = path.dirname(filePath);
-				const base = path.basename(filePath);
-				return {dir, base};
-			}
-
 			// 現在のエディタのファイルパスを取得して、ディレクトリとファイルに分離する
 			const filePath = editor.document.uri.fsPath;
 			const result = splitFilePath(filePath);
@@ -36,8 +38,9 @@ export function activate(context: vscode.ExtensionContext) {
 			let promiserows;
 
 			// コミット番号を取得する
-			const commitId = await vscode.window.showInputBox({title: 'Please specify the commitID', placeHolder : 'In the absence of a specified commit ID, the comparison will be made against the HEAD commit.'});
+			commitId = await vscode.window.showInputBox({title: 'Please specify the commitID', placeHolder : 'In the absence of a specified commit ID, the comparison will be made against the HEAD commit.'});
 			if( commitId !== undefined ) {
+				commitId = commitId.trim();
 				promiserows = makeSimpleGitDiff(result.dir, result.base, commitId);
 			}else {
 				promiserows = makeSimpleGitDiff(result.dir, result.base, "");
@@ -53,7 +56,6 @@ export function activate(context: vscode.ExtensionContext) {
 			vscode.window.showInformationMessage('activeTextEditor null');
 		}
 	});
-
 	context.subscriptions.push(disposable);
 
 	// 
@@ -62,7 +64,6 @@ export function activate(context: vscode.ExtensionContext) {
 		let util = Util.getInstance();
 		util.clearRows();
 	});
-
 	context.subscriptions.push(disposable);
 
 	// 
@@ -71,7 +72,6 @@ export function activate(context: vscode.ExtensionContext) {
 		let util = Util.getInstance();
 		util.upSelectLine();
 	});
-
 	context.subscriptions.push(disposable);
 
 	// 
@@ -80,9 +80,38 @@ export function activate(context: vscode.ExtensionContext) {
 		let util = Util.getInstance();
 		util.downSelectLine();
 	});
-
 	context.subscriptions.push(disposable);
 
+	// 
+	disposable = vscode.commands.registerCommand('simplegitdiff.redisplySimpleGitDiff', async() => {
+		//
+		let util = Util.getInstance();
+		const filePath = util.getFilePath();
+		if(!filePath) {
+			vscode.window.showInformationMessage('No FileName');
+			return;
+		}
+
+		// 現在のエディタのファイルパスを取得して、ディレクトリとファイルに分離する
+		const result = splitFilePath(filePath);
+
+		let promiserows;
+
+		// コミット番号を取得する
+		if( commitId !== undefined ) {
+			promiserows = makeSimpleGitDiff(result.dir, result.base, commitId);
+		}else {
+			promiserows = makeSimpleGitDiff(result.dir, result.base, "");
+		}
+		
+		const rows = await promiserows; // Promise が解決されるまで待つ
+
+		//
+		util.setRows(filePath, rows);
+
+	});
+	context.subscriptions.push(disposable);
+	
 
 	// 現在のTextEditorを取得
 	let activeEditor = vscode.window.activeTextEditor;

@@ -81,7 +81,8 @@ export class Util {
         console.log(`setRows ${filePath} : ${rows}`);
 
         this.filePath = filePath;
-
+        this.ranges.length = 0;
+        
         let index = 0;
         while( index < rows.length ) {
 

@@ -1,8 +1,9 @@
 {
   "name": "simplegitdiff",
   "displayName": "SimpleGitDiff",
-  "description": "",
-  "version": "0.0.8",
+  "description": "A simple program to compare the current state, work branch, and a specified commit ID, and display the changes in the VSCode editor.",
+  "version": "0.1.0",
+  "publisher": "kawamoto",
   "engines": {
     "vscode": "^1.94.0"
   },
@@ -28,6 +29,10 @@
       {
         "command": "simplegitdiff.downSimpleGitDiff",
         "title": "SimpleGitDiffDown"
+      },
+      {
+        "command": "simplegitdiff.redisplySimpleGitDiff",
+        "title": "SimpleGitDiffRe"
       }
     ],
     "configuration": {
@@ -45,16 +50,27 @@
       "editor/context": [
         {
           "when": "editorFocus",
-          "command": "simplegitdiff.upSimpleGitDiff",
+          "submenu": "simplegitdiff.subMenu",
+          "group": "myGroup"
+        }
+      ],
+      "simplegitdiff.subMenu": [
+        {
+          "command": "simplegitdiff.upSimpleGitDiff",          
           "group": "myGroup@1"
         },
         {
-          "when": "editorFocus",
-          "command": "simplegitdiff.downSimpleGitDiff",
+          "command": "simplegitdiff.downSimpleGitDiff",          
           "group": "myGroup@2"
         }
       ]
-    }
+    },
+    "submenus": [
+      {
+        "id": "simplegitdiff.subMenu",
+        "label": "SimpleGitDiff"
+      }
+    ]
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
